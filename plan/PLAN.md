@@ -99,14 +99,14 @@ Build a standalone, robust Go backend using Connect RPC, `digitalocean/go-libvir
 
 ## Phase 2: Web Frontend & Visual Canvas
 
-- [ ] Initialize React 19 + TypeScript + Vite + Tailwind CSS + shadcn/ui.
-- [ ] Setup `@connectrpc/connect-web` and `@connectrpc/connect-query` using generated Protobuf TypeScript client.
-- [ ] Implement global application layout (header, sidebar with VM list, status indicators).
-- [ ] Implement `@xyflow/react` canvas:
+- [x] Initialize React 19 + TypeScript + Vite + Tailwind CSS + shadcn/ui.
+- [x] Setup `@connectrpc/connect-web` and `@connectrpc/connect-query` using generated Protobuf TypeScript client.
+- [x] Implement global application layout (header, sidebar with VM list, status indicators).
+- [x] Implement `@xyflow/react` canvas:
   - Custom `VmCoreNode` with live telemetry gauges (CPU %, RAM, uptime, IP).
   - Custom capability nodes (`[Storage]`, `[Network]`, `[Compute]`, `[PCI Hostdev]`) with distinct group badges and names.
   - Interactive handles and wire routing.
-- [ ] Connect `StreamTelemetry` hook to update the canvas in real time.
+- [x] Connect `StreamTelemetry` hook to update the canvas in real time.
 
 ---
 
