@@ -108,7 +108,6 @@ rhino/
 │           ├── vm.proto         # Domain lifecycle & telemetry streams
 │           ├── hardware.proto   # Capability node mutations & types
 │           └── host.proto       # Host storage/network/PCI discovery
-├── Makefile                     # Build & run automation
 ├── main.go                      # Root executable entrypoint
 ├── cmd/                         # CLI commands using Cobra and Viper
 │   ├── rhino/

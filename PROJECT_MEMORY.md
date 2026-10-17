@@ -92,8 +92,10 @@ These capabilities were intentionally deferred during `/grill-me` alignment to e
   - Go plugins: `protoc-gen-go`, `protoc-gen-connect-go`.
   - TS plugins: `@bufbuild/protoc-gen-es`, `@connectrpc/protoc-gen-connect-es`.
 - **Testing Standard**:
-  - **Always run tests with the `-race` flag** (`go test -v -race ./...` or `make test`).
+  - **Always run tests with the `-race` flag** (`go test -v -race ./...`).
   - This is mandatory to prevent and detect race conditions across concurrent Connect RPC streams, ticker loops, hypervisor driver calls, and mock state synchronizations.
+- **No Makefiles**:
+  - Do NOT create or use Makefiles. Always invoke standard tools directly (`buf generate`, `go test -v -race ./...`, `go build -o bin/rhino .`).
 - **Packaging**:
   - Single binary build: `go build -o bin/rhino .` with `//go:embed` targeting `web/dist`.
   - Dev workflow: Vite dev server with proxy to Go backend running on `:8080` (enabling hot module replacement).

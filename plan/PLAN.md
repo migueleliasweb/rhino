@@ -19,7 +19,7 @@ Build a standalone, robust Go backend using Connect RPC, `digitalocean/go-libvir
 - [x] Configure `buf.gen.yaml` targeting Go plugins:
   - `protoc-gen-go`
   - `protoc-gen-connect-go`
-- [x] Setup Makefile or task runner for `make proto`, `make test`, `make run`.
+- [x] Configure standard build and test tooling (`buf generate`, `go test -v -race ./...`, `go build -o bin/rhino .`).
 
 ### Step 1.2: Protobuf Schema Design (`proto/rhino/v1/`)
 - [x] **`vm.proto`**:
