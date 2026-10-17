@@ -11,6 +11,19 @@ Rhino reimagines virtual machine management by replacing traditional nested conf
 
 ---
 
+## 📚 Documentation
+
+| Document | Description |
+| :--- | :--- |
+| **[Architecture Blueprint](./ARCHITECTURE.md)** | Core system design, node taxonomy, and technology rationale |
+| **[API Reference](./docs/API.md)** | Connect RPC services (`VMService`, `HostService`, `HardwareService`) and curl examples |
+| **[CLI Reference](./docs/CLI.md)** | Command-line flags, Viper environment variables, and `rhino.yaml` syntax |
+| **[Developer Guide](./docs/DEVELOPMENT.md)** | Local development workflow (macOS mock vs Linux KVM), building, and race testing |
+| **[Engineering Plan](./plan/PLAN.md)** | Phased task breakdown and milestone progress |
+| **[Project Memory](./PROJECT_MEMORY.md)** | Operational nuances, mock driver design, and deferred features backlog |
+
+---
+
 ## Features
 
 - 🎨 **Visual Node-Based Canvas Layout**: Machines exist as central core nodes with direct wired attachments to typed capability nodes (`[Storage]`, `[Network]`, `[Compute]`, `[PCI Hostdev]`).
@@ -128,11 +141,11 @@ go test -v -race ./...
 
 ---
 
-## Documentation
+## Documentation Index
 
-- [ARCHITECTURE.md](file:///Users/miguel.santos/Projects/personal/rhino/ARCHITECTURE.md) — System architecture, node taxonomy, and end-to-end design.
-- [plan/PLAN.md](file:///Users/miguel.santos/Projects/personal/rhino/plan/PLAN.md) — Detailed implementation phases and progress tracking.
-- [PROJECT_MEMORY.md](file:///Users/miguel.santos/Projects/personal/rhino/PROJECT_MEMORY.md) — Architectural rationale, mock driver requirements, and deferred backlog.
-- [docs/API.md](file:///Users/miguel.santos/Projects/personal/rhino/docs/API.md) — Connect RPC service schemas, payloads, and curl examples.
-- [docs/CLI.md](file:///Users/miguel.santos/Projects/personal/rhino/docs/CLI.md) — CLI flags, subcommands, and environment variable configuration.
-- [docs/DEVELOPMENT.md](file:///Users/miguel.santos/Projects/personal/rhino/docs/DEVELOPMENT.md) — Setup, local development on macOS, and Protobuf code generation.
+- 📐 **[ARCHITECTURE.md](./ARCHITECTURE.md)** — Core architecture, node taxonomy, and technology rationale.
+- 📡 **[docs/API.md](./docs/API.md)** — Connect RPC service schemas, payloads, and curl invocation examples.
+- 💻 **[docs/CLI.md](./docs/CLI.md)** — CLI flags, subcommands, and environment variable configuration.
+- 🛠️ **[docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)** — Setup, local development on macOS, and Protobuf code generation.
+- 📋 **[plan/PLAN.md](./plan/PLAN.md)** — Detailed implementation phases and progress tracking.
+- 🧠 **[PROJECT_MEMORY.md](./PROJECT_MEMORY.md)** — Architectural rationale, mock driver requirements, and deferred backlog.
