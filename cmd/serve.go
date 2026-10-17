@@ -20,6 +20,7 @@ import (
 	"github.com/migueleliasweb/rhino/server/gen/proto/go/rhino/v1/rhinov1connect"
 	"github.com/migueleliasweb/rhino/internal/hypervisor"
 	"github.com/migueleliasweb/rhino/internal/service"
+	"github.com/migueleliasweb/rhino/web"
 )
 
 var serveCmd = &cobra.Command{
@@ -96,6 +97,9 @@ func runServe(_ *cobra.Command, _ []string) error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
+
+	// Embedded Web SPA static asset & fallback handler
+	mux.Handle("/", web.Handler())
 
 	var rootHandler http.Handler = mux
 
