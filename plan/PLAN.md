@@ -14,44 +14,49 @@ Build a standalone, robust Go backend using Connect RPC, `digitalocean/go-libvir
 ---
 
 ### Step 1.1: Project Setup & Tooling Configuration
-- [ ] Initialize Go module `github.com/migueleliasweb/rhino` (`go.mod`).
-- [ ] Configure `buf.yaml` (v2) specifying module name and proto dependencies.
-- [ ] Configure `buf.gen.yaml` targeting Go plugins:
+- [x] Initialize Go module `github.com/migueleliasweb/rhino` (`go.mod`).
+- [x] Configure `buf.yaml` (v2) specifying module name and proto dependencies.
+- [x] Configure `buf.gen.yaml` targeting Go plugins:
   - `protoc-gen-go`
   - `protoc-gen-connect-go`
-- [ ] Setup Makefile or task runner for `make proto`, `make test`, `make run`.
+- [x] Setup Makefile or task runner for `make proto`, `make test`, `make run`.
 
 ### Step 1.2: Protobuf Schema Design (`proto/rhino/v1/`)
-- [ ] **`vm.proto`**:
+- [x] **`vm.proto`**:
   - `VMService`:
     - `ListDomains(ListDomainsRequest) returns (ListDomainsResponse)`: Returns all active/inactive domains with core metadata (UUID, Name, State, vCPUs, Memory).
     - `GetDomain(GetDomainRequest) returns (GetDomainResponse)`: Returns detailed domain breakdown including typed device topology.
     - `StartDomain(StartDomainRequest) returns (StartDomainResponse)`
     - `StopDomain(StopDomainRequest) returns (StopDomainResponse)`: Supports graceful shutdown and force-off (`destroy`).
     - `DeleteDomain(DeleteDomainRequest) returns (DeleteDomainResponse)`: Undefines domain with option to remove associated storage volumes.
-    - `StreamTelemetry(StreamTelemetryRequest) returns (stream TelemetryUpdate)`: Server-streaming RPC pushing live CPU, memory, and I/O metrics at requested intervals.
+    - `StreamTelemetry(StreamTelemetryRequest) returns (stream StreamTelemetryResponse)`: Server-streaming RPC pushing live CPU, memory, and I/O metrics at requested intervals.
     - `GetDomainXML(GetDomainXMLRequest) returns (GetDomainXMLResponse)`: Raw XML escape hatch.
     - `UpdateDomainXML(UpdateDomainXMLRequest) returns (UpdateDomainXMLResponse)`: Raw XML escape hatch update with dry-run validation.
-- [ ] **`host.proto`**:
+- [x] **`host.proto`**:
   - `HostService`:
     - `ListStoragePools(ListStoragePoolsRequest) returns (ListStoragePoolsResponse)`: Returns pools and contained volumes/ISOs.
     - `ListNetworks(ListNetworksRequest) returns (ListNetworksResponse)`: Returns virtual networks (NAT/routed) and host bridge interfaces.
     - `ListNodeDevices(ListNodeDevicesRequest) returns (ListNodeDevicesResponse)`: Returns host PCI devices (GPUs, NICs) with vendor/device descriptors.
     - `GetHostInfo(GetHostInfoRequest) returns (GetHostInfoResponse)`: Host CPU, RAM, and virtualization hypervisor details.
-- [ ] **`hardware.proto`**:
+- [x] **`hardware.proto`**:
   - `HardwareService`:
-    - `AttachDevice(AttachDeviceRequest) returns (AttachDeviceResponse)`: Validates device specification, hotplugs if running and supported, otherwise stages to config; reports `reboot_required`.
-    - `DetachDevice(DetachDeviceRequest) returns (DetachDeviceResponse)`: Detaches device with live/config flags.
-    - `UpdateDevice(UpdateDeviceRequest) returns (UpdateDeviceResponse)`: Modifies device configuration.
+    - `AttachDisk(AttachDiskRequest) returns (AttachDiskResponse)`: Validates device specification, hotplugs if running and supported, otherwise stages to config; reports `reboot_required`.
+    - `DetachDisk(DetachDiskRequest) returns (DetachDiskResponse)`: Detaches device with live/config flags.
+    - `AttachNetworkInterface(AttachNetworkInterfaceRequest) returns (AttachNetworkInterfaceResponse)`: Attaches virtual network interface.
+    - `DetachNetworkInterface(DetachNetworkInterfaceRequest) returns (DetachNetworkInterfaceResponse)`: Detaches virtual network interface.
+    - `AttachPCIDevice(AttachPCIDeviceRequest) returns (AttachPCIDeviceResponse)`: Attaches host PCI passthrough device.
+    - `DetachPCIDevice(DetachPCIDeviceRequest) returns (DetachPCIDeviceResponse)`: Detaches host PCI passthrough device.
+    - `UpdateComputeConfig(UpdateComputeConfigRequest) returns (UpdateComputeConfigResponse)`: Modifies compute sizing.
 
 ### Step 1.3: Hypervisor Driver Layer (`server/internal/hypervisor/`)
-- [ ] **Interface Definition (`client.go`)**:
+- [x] **Interface Definition (`client.go`)**:
   - Decouple all RPC services from driver specifics via `HypervisorClient`:
     - `ListDomains(ctx context.Context) ([]DomainSummary, error)`
     - `GetDomainXML(ctx context.Context, nameOrUUID string) (string, error)`
     - `DefineDomainXML(ctx context.Context, xmlStr string) (string, error)`
     - `StartDomain(ctx context.Context, nameOrUUID string) error`
     - `StopDomain(ctx context.Context, nameOrUUID string, force bool) error`
+    - `RestartDomain(ctx context.Context, nameOrUUID string, force bool) error`
     - `DeleteDomain(ctx context.Context, nameOrUUID string, removeDisks bool) error`
     - `AttachDevice(ctx context.Context, nameOrUUID string, deviceXML string, live, config bool) error`
     - `DetachDevice(ctx context.Context, nameOrUUID string, deviceXML string, live, config bool) error`
@@ -59,19 +64,18 @@ Build a standalone, robust Go backend using Connect RPC, `digitalocean/go-libvir
     - `ListStoragePools(ctx context.Context) ([]StoragePoolSummary, error)`
     - `ListNetworks(ctx context.Context) ([]NetworkSummary, error)`
     - `ListNodeDevices(ctx context.Context, capType string) ([]NodeDeviceSummary, error)`
-- [ ] **Production Driver (`golibvirt.go`)**:
+- [x] **Production Driver (`golibvirt.go`)**:
   - Connects to `/var/run/libvirt/libvirt-sock` or TCP socket via `digitalocean/go-libvirt`.
   - Implements translation between `go-libvirt` RPC calls and `HypervisorClient` models.
-- [ ] **In-Memory Mock Driver (`mock.go`)**:
+- [x] **In-Memory Mock Driver (`mock.go`)**:
   - Contains canned, realistic libvirt domain XMLs (Ubuntu Server, Windows 11 with GPU, Debian minimal).
   - Simulates domain state transitions (stopped -> starting -> running -> stopping).
   - Emits synthetic, oscillating CPU and RAM telemetry for streaming validation.
   - Enables full development, testing, and CI execution on macOS without KVM headers or root privileges.
 
 ### Step 1.4: XML Transformation & Diff Engine (`server/internal/xml/`)
-- [ ] Use `libvirt.org/go/libvirtxml`:
+- [x] Use `libvirt.org/go/libvirtxml`:
   - `ParseDomain(xmlStr string) (*libvirtxml.Domain, error)`
-  - `SerializeDomain(dom *libvirtxml.Domain) (string, error)`
   - Helper functions to extract structured device models:
     - Disks (`DomainDisk`) -> Protobuf `DiskDevice`
     - Interfaces (`DomainInterface`) -> Protobuf `NetworkInterfaceDevice`
@@ -80,16 +84,16 @@ Build a standalone, robust Go backend using Connect RPC, `digitalocean/go-libvir
   - Hotplug compatibility analyzer: inspects device type and determines whether live hotplug is permissible in QEMU.
 
 ### Step 1.5: Connect RPC Service Implementations (`server/internal/service/`)
-- [ ] Implement `VMServiceHandler` (`vm_service.go`).
-- [ ] Implement `HostServiceHandler` (`host_service.go`).
-- [ ] Implement `HardwareServiceHandler` (`hardware_service.go`).
-- [ ] Implement context-aware telemetry streaming loop with tickers and graceful termination on client disconnect.
-- [ ] Implement HTTP server entrypoint in `server/cmd/rhino/main.go` with CORS support for local development.
+- [x] Implement `VMServiceHandler` (`vm_service.go`).
+- [x] Implement `HostServiceHandler` (`host_service.go`).
+- [x] Implement `HardwareServiceHandler` (`hardware_service.go`).
+- [x] Implement context-aware telemetry streaming loop with tickers and graceful termination on client disconnect.
+- [x] Implement HTTP server entrypoint in `server/cmd/rhino/main.go` with CORS support for local development.
 
 ### Step 1.6: Automated Testing & Verification
-- [ ] Unit tests for XML parsing and device extraction (`xml_test.go`).
-- [ ] Service integration tests running against `MockClient` (`service_test.go`).
-- [ ] End-to-end verification via `buf curl` or HTTP client verifying unary and streaming calls.
+- [x] Unit tests for XML parsing and device extraction (`xml_test.go`).
+- [x] Service integration tests running against `MockClient` (`service_test.go`).
+- [x] End-to-end verification via HTTP client verifying unary and streaming calls.
 
 ---
 

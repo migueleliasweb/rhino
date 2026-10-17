@@ -91,6 +91,9 @@ These capabilities were intentionally deferred during `/grill-me` alignment to e
   - Used for linting, breaking change detection, and generating both Go and TypeScript code from `proto/`.
   - Go plugins: `protoc-gen-go`, `protoc-gen-connect-go`.
   - TS plugins: `@bufbuild/protoc-gen-es`, `@connectrpc/protoc-gen-connect-es`.
+- **Testing Standard**:
+  - **Always run tests with the `-race` flag** (`go test -v -race ./...` or `make test`).
+  - This is mandatory to prevent and detect race conditions across concurrent Connect RPC streams, ticker loops, hypervisor driver calls, and mock state synchronizations.
 - **Packaging**:
-  - Single binary build: `go build` with `//go:embed` targeting `web/dist`.
+  - Single binary build: `go build -o bin/rhino .` with `//go:embed` targeting `web/dist`.
   - Dev workflow: Vite dev server with proxy to Go backend running on `:8080` (enabling hot module replacement).

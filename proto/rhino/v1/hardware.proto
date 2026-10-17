@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package rhino.v1;
+
+option go_package = "github.com/migueleliasweb/rhino/server/gen/proto/go/rhino/v1;rhinov1";
+
+// DiskDevice represents a virtual disk or CD-ROM device.
+message DiskDevice {
+  string id = 1;                     // e.g. "disk-vda"
+  string target_dev = 2;             // e.g. "vda", "sda", "hdc"
+  string device_type = 3;            // "disk", "cdrom"
+  string driver_format = 4;          // "qcow2", "raw"
+  string source_file = 5;            // "/var/lib/libvirt/images/vm.qcow2" or ISO path
+  string bus = 6;                    // "virtio", "sata", "scsi", "ide"
+  bool readonly = 7;
+  int32 boot_order = 8;
+  int64 capacity_bytes = 9;
+}
+
+// NetworkInterfaceDevice represents a virtual network interface card (vNIC).
+message NetworkInterfaceDevice {
+  string id = 1;                     // e.g. "interface-52:54:00:12:34:56"
+  string mac_address = 2;            // "52:54:00:12:34:56"
+  string interface_type = 3;         // "network", "bridge", "direct"
+  string source = 4;                 // "default", "br0", etc.
+  string model = 5;                  // "virtio", "e1000", "rtl8139"
+  repeated string ip_addresses = 6;  // Discovered via ARP / guest agent
+}
+
+// PCIDevice represents a host PCI device attached via hostdev passthrough (e.g. GPU).
+message PCIDevice {
+  string id = 1;                     // e.g. "hostdev-0000_01_00_0"
+  string domain = 2;                 // "0x0000"
+  string bus = 3;                    // "0x01"
+  string slot = 4;                   // "0x00"
+  string function = 5;               // "0x0"
+  string vendor_id = 6;              // "0x10de"
+  string product_id = 7;             // "0x2782"
+  string vendor_name = 8;            // "NVIDIA Corporation"
+  string product_name = 9;           // "AD104 [GeForce RTX 4070]"
+  int32 iommu_group = 10;
+}
+
+// ComputeConfig represents CPU and RAM sizing.
+message ComputeConfig {
+  int32 vcpus = 1;
+  int32 sockets = 2;
+  int32 cores = 3;
+  int32 threads = 4;
+  int64 memory_kib = 5;
+  int64 max_memory_kib = 6;
+}
+
+// HardwareService manages device attachment, detachment, and updates.
+service HardwareService {
+  rpc AttachDisk(AttachDiskRequest) returns (AttachDiskResponse);
+  rpc DetachDisk(DetachDiskRequest) returns (DetachDiskResponse);
+
+  rpc AttachNetworkInterface(AttachNetworkInterfaceRequest) returns (AttachNetworkInterfaceResponse);
+  rpc DetachNetworkInterface(DetachNetworkInterfaceRequest) returns (DetachNetworkInterfaceResponse);
+
+  rpc AttachPCIDevice(AttachPCIDeviceRequest) returns (AttachPCIDeviceResponse);
+  rpc DetachPCIDevice(DetachPCIDeviceRequest) returns (DetachPCIDeviceResponse);
+
+  rpc UpdateComputeConfig(UpdateComputeConfigRequest) returns (UpdateComputeConfigResponse);
+}
+
+message AttachDiskRequest {
+  string domain_id = 1;
+  DiskDevice disk = 2;
+  bool live = 3;
+}
+
+message AttachDiskResponse {
+  DiskDevice disk = 1;
+  bool reboot_required = 2;
+}
+
+message DetachDiskRequest {
+  string domain_id = 1;
+  string target_dev = 2;
+  bool live = 3;
+}
+
+message DetachDiskResponse {
+  bool success = 1;
+  bool reboot_required = 2;
+}
+
+message AttachNetworkInterfaceRequest {
+  string domain_id = 1;
+  NetworkInterfaceDevice interface = 2;
+  bool live = 3;
+}
+
+message AttachNetworkInterfaceResponse {
+  NetworkInterfaceDevice interface = 1;
+  bool reboot_required = 2;
+}
+
+message DetachNetworkInterfaceRequest {
+  string domain_id = 1;
+  string mac_address = 2;
+  bool live = 3;
+}
+
+message DetachNetworkInterfaceResponse {
+  bool success = 1;
+  bool reboot_required = 2;
+}
+
+message AttachPCIDeviceRequest {
+  string domain_id = 1;
+  PCIDevice pci_device = 2;
+  bool live = 3;
+}
+
+message AttachPCIDeviceResponse {
+  PCIDevice pci_device = 1;
+  bool reboot_required = 2;
+}
+
+message DetachPCIDeviceRequest {
+  string domain_id = 1;
+  string device_id = 2;
+  bool live = 3;
+}
+
+message DetachPCIDeviceResponse {
+  bool success = 1;
+  bool reboot_required = 2;
+}
+
+message UpdateComputeConfigRequest {
+  string domain_id = 1;
+  ComputeConfig compute = 2;
+}
+
+message UpdateComputeConfigResponse {
+  ComputeConfig compute = 1;
+  bool reboot_required = 2;
+}

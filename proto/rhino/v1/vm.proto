@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package rhino.v1;
+
+import "rhino/v1/hardware.proto";
+
+option go_package = "github.com/migueleliasweb/rhino/server/gen/proto/go/rhino/v1;rhinov1";
+
+enum DomainState {
+  DOMAIN_STATE_UNSPECIFIED = 0;
+  DOMAIN_STATE_NOSTATE = 1;
+  DOMAIN_STATE_RUNNING = 2;
+  DOMAIN_STATE_BLOCKED = 3;
+  DOMAIN_STATE_PAUSED = 4;
+  DOMAIN_STATE_SHUTDOWN = 5;
+  DOMAIN_STATE_SHUTOFF = 6;
+  DOMAIN_STATE_CRASHED = 7;
+  DOMAIN_STATE_PMSUSPENDED = 8;
+}
+
+message DomainSummary {
+  string uuid = 1;
+  string name = 2;
+  int32 id = 3;                       // Hypervisor transient ID, -1 if shutoff
+  DomainState state = 4;
+  int32 vcpus = 5;
+  int64 memory_kib = 6;
+  int64 max_memory_kib = 7;
+  bool autostart = 8;
+  string os_type = 9;
+  string arch = 10;
+}
+
+message DomainDetail {
+  DomainSummary summary = 1;
+  ComputeConfig compute = 2;
+  repeated DiskDevice disks = 3;
+  repeated NetworkInterfaceDevice interfaces = 4;
+  repeated PCIDevice pci_devices = 5;
+  string emulator_path = 6;
+  string raw_xml = 7;
+}
+
+message TelemetryUpdate {
+  string domain_id = 1;               // Name or UUID
+  int64 timestamp_epoch_ms = 2;
+  DomainState state = 3;
+  double cpu_percent = 4;             // 0.0 to 100.0 * num_vcpus
+  int64 memory_used_bytes = 5;
+  int64 memory_total_bytes = 6;
+  int64 disk_read_bytes_sec = 7;
+  int64 disk_write_bytes_sec = 8;
+  int64 net_rx_bytes_sec = 9;
+  int64 net_tx_bytes_sec = 10;
+}
+
+service VMService {
+  rpc ListDomains(ListDomainsRequest) returns (ListDomainsResponse);
+  rpc GetDomain(GetDomainRequest) returns (GetDomainResponse);
+  rpc StartDomain(StartDomainRequest) returns (StartDomainResponse);
+  rpc StopDomain(StopDomainRequest) returns (StopDomainResponse);
+  rpc RestartDomain(RestartDomainRequest) returns (RestartDomainResponse);
+  rpc DeleteDomain(DeleteDomainRequest) returns (DeleteDomainResponse);
+
+  rpc StreamTelemetry(StreamTelemetryRequest) returns (stream StreamTelemetryResponse);
+
+  rpc GetDomainXML(GetDomainXMLRequest) returns (GetDomainXMLResponse);
+  rpc UpdateDomainXML(UpdateDomainXMLRequest) returns (UpdateDomainXMLResponse);
+}
+
+message ListDomainsRequest {
+  bool include_inactive = 1;
+}
+
+message ListDomainsResponse {
+  repeated DomainSummary domains = 1;
+}
+
+message GetDomainRequest {
+  string id = 1;                      // UUID or Name
+}
+
+message GetDomainResponse {
+  DomainDetail domain = 1;
+}
+
+message StartDomainRequest {
+  string id = 1;                      // UUID or Name
+}
+
+message StartDomainResponse {
+  bool success = 1;
+  DomainState state = 2;
+}
+
+message StopDomainRequest {
+  string id = 1;                      // UUID or Name
+  bool force = 2;                     // If true, issues immediate destroy; else graceful shutdown
+}
+
+message StopDomainResponse {
+  bool success = 1;
+  DomainState state = 2;
+}
+
+message RestartDomainRequest {
+  string id = 1;
+  bool force = 2;
+}
+
+message RestartDomainResponse {
+  bool success = 1;
+  DomainState state = 2;
+}
+
+message DeleteDomainRequest {
+  string id = 1;
+  bool remove_disks = 2;
+}
+
+message DeleteDomainResponse {
+  bool success = 1;
+}
+
+message StreamTelemetryRequest {
+  string id = 1;                      // Specific domain ID or empty for all running domains
+  int32 interval_ms = 2;              // Cadence in ms (e.g. 1000 or 2000)
+}
+
+message StreamTelemetryResponse {
+  TelemetryUpdate update = 1;
+}
+
+message GetDomainXMLRequest {
+  string id = 1;
+}
+
+message GetDomainXMLResponse {
+  string xml = 1;
+}
+
+message UpdateDomainXMLRequest {
+  string id = 1;
+  string xml = 2;
+  bool dry_run = 3;
+}
+
+message UpdateDomainXMLResponse {
+  bool success = 1;
+  DomainDetail domain = 2;
+}

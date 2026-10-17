@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package rhino.v1;
+
+option go_package = "github.com/migueleliasweb/rhino/server/gen/proto/go/rhino/v1;rhinov1";
+
+message StorageVolume {
+  string name = 1;
+  string key = 2;
+  string path = 3;
+  int64 capacity_bytes = 4;
+  int64 allocation_bytes = 5;
+  string format = 6;                // "qcow2", "raw", "iso"
+  string pool_name = 7;
+}
+
+message StoragePool {
+  string name = 1;
+  string uuid = 2;
+  string state = 3;                 // "running", "inactive"
+  int64 capacity_bytes = 4;
+  int64 allocation_bytes = 5;
+  int64 available_bytes = 6;
+  string target_path = 7;           // e.g. "/var/lib/libvirt/images"
+  repeated StorageVolume volumes = 8;
+}
+
+message VirtualNetwork {
+  string name = 1;
+  string uuid = 2;
+  string bridge_name = 3;          // "virbr0"
+  string forward_mode = 4;          // "nat", "route", "bridge", "isolated"
+  bool active = 5;
+  bool autostart = 6;
+  string ip_address = 7;            // "192.168.122.1"
+  string ip_netmask = 8;            // "255.255.255.0"
+}
+
+message HostNodeDevice {
+  string name = 1;                  // "pci_0000_01_00_0"
+  string parent = 2;
+  string capability = 3;            // "pci", "usb", "net"
+  string domain = 4;
+  string bus = 5;
+  string slot = 6;
+  string function = 7;
+  string vendor_id = 8;
+  string product_id = 9;
+  string vendor_name = 10;
+  string product_name = 11;
+  int32 iommu_group = 12;
+}
+
+message HostInfo {
+  string model = 1;
+  int64 memory_kib = 2;
+  int32 cpus = 3;
+  int32 mhz = 4;
+  int32 nodes = 5;
+  int32 sockets = 6;
+  int32 cores = 7;
+  int32 threads = 8;
+  string hypervisor = 9;            // "QEMU", "KVM"
+  string libvirt_version = 10;
+}
+
+service HostService {
+  rpc GetHostInfo(GetHostInfoRequest) returns (GetHostInfoResponse);
+  rpc ListStoragePools(ListStoragePoolsRequest) returns (ListStoragePoolsResponse);
+  rpc ListNetworks(ListNetworksRequest) returns (ListNetworksResponse);
+  rpc ListNodeDevices(ListNodeDevicesRequest) returns (ListNodeDevicesResponse);
+}
+
+message GetHostInfoRequest {}
+
+message GetHostInfoResponse {
+  HostInfo host_info = 1;
+}
+
+message ListStoragePoolsRequest {}
+
+message ListStoragePoolsResponse {
+  repeated StoragePool pools = 1;
+}
+
+message ListNetworksRequest {}
+
+message ListNetworksResponse {
+  repeated VirtualNetwork networks = 1;
+}
+
+message ListNodeDevicesRequest {
+  string capability_filter = 1;     // e.g. "pci"
+}
+
+message ListNodeDevicesResponse {
+  repeated HostNodeDevice devices = 1;
+}

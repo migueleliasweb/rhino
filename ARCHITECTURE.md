@@ -108,20 +108,27 @@ rhino/
 │           ├── vm.proto         # Domain lifecycle & telemetry streams
 │           ├── hardware.proto   # Capability node mutations & types
 │           └── host.proto       # Host storage/network/PCI discovery
+├── Makefile                     # Build & run automation
+├── main.go                      # Root executable entrypoint
+├── cmd/                         # CLI commands using Cobra and Viper
+│   ├── rhino/
+│   │   └── main.go              # Standalone CLI entrypoint
+│   ├── root.go                  # Root command & Viper environment initialization
+│   ├── serve.go                 # 'serve' subcommand for Connect RPC daemon
+│   └── version.go               # 'version' subcommand
+├── internal/                    # Core internal services & hypervisor drivers
+│   ├── hypervisor/              # Libvirt driver abstraction & go-libvirt client
+│   │   ├── client.go            # HypervisorClient interface
+│   │   ├── golibvirt.go         # digitalocean/go-libvirt implementation
+│   │   └── mock.go              # Mock client for tests/dev without KVM
+│   ├── service/                 # Connect RPC service implementations
+│   │   ├── vm_service.go
+│   │   ├── hardware_service.go
+│   │   └── host_service.go
+│   └── xml/                     # libvirt-go-xml transformations & diff engine
 ├── server/
-│   ├── cmd/
-│   │   └── rhino/
-│   │       └── main.go          # CLI entrypoint & embedded SPA server
-│   ├── internal/
-│   │   ├── hypervisor/          # Libvirt driver abstraction & go-libvirt client
-│   │   │   ├── client.go        # HypervisorClient interface
-│   │   │   ├── golibvirt.go     # digitalocean/go-libvirt implementation
-│   │   │   └── mock.go          # Mock client for tests/dev without KVM
-│   │   ├── service/             # Connect RPC service implementations
-│   │   │   ├── vm_service.go
-│   │   │   ├── hardware_service.go
-│   │   │   └── host_service.go
-│   │   └── xml/                 # libvirt-go-xml transformations & diff engine
+│   └── gen/                     # Protobuf generated Go code
+│       └── proto/go/
 ├── web/
 │   ├── package.json
 │   ├── vite.config.ts
