@@ -1,6 +1,6 @@
-import { memo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { HardDrive, Network, Cpu, Zap, Disc, Server, Trash2, X, RotateCcw } from 'lucide-react';
+import { memo, useEffect } from 'react';
+import { Handle, Position, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
+import { HardDrive, Network, Cpu, Zap, Disc, Server, Trash2, X, RotateCcw, Pencil } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
 import type { DiskDevice, NetworkInterfaceDevice, PCIDevice, ComputeConfig } from '@/gen/rhino/v1/hardware_pb';
 
@@ -12,17 +12,25 @@ export interface CapabilityNodeData {
   network?: NetworkInterfaceDevice;
   pci?: PCIDevice;
   compute?: ComputeConfig;
-  status?: 'normal' | 'staged-add' | 'staged-delete';
+  status?: 'normal' | 'staged-add' | 'staged-delete' | 'staged-modify';
   positionSide?: 'left' | 'right';
   onDetach?: () => void;
+  onEdit?: () => void;
+  onUndoModify?: () => void;
 }
 
-export const CapabilityNode = memo(({ data }: NodeProps) => {
+export const CapabilityNode = memo(({ id, data }: NodeProps) => {
   const nodeData = data as unknown as CapabilityNodeData;
   const { type, status = 'normal', positionSide = 'left' } = nodeData;
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, positionSide, updateNodeInternals]);
 
   const isStagedAdd = status === 'staged-add';
   const isStagedDelete = status === 'staged-delete';
+  const isStagedModify = status === 'staged-modify';
 
   let config = {
     title: 'Capability',
@@ -93,6 +101,13 @@ export const CapabilityNode = memo(({ data }: NodeProps) => {
 
   return (
     <div
+      onDoubleClick={(e) => {
+        if (nodeData.onEdit) {
+          e.stopPropagation();
+          nodeData.onEdit();
+        }
+      }}
+      title={nodeData.onEdit ? 'Double-click to edit configuration' : undefined}
       className={`group min-w-[260px] max-w-[320px] rounded-xl border backdrop-blur-md shadow-xl transition-all duration-200 select-none ${
         config.borderColor
       } ${
@@ -100,17 +115,21 @@ export const CapabilityNode = memo(({ data }: NodeProps) => {
           ? 'ring-2 ring-emerald-500/70 border-emerald-500 shadow-emerald-950/40 bg-neutral-900/95'
           : isStagedDelete
           ? 'ring-2 ring-rose-500/70 border-rose-500 opacity-60 bg-neutral-900/90'
-          : 'bg-neutral-900/90'
+          : isStagedModify
+          ? 'ring-2 ring-amber-500/70 border-amber-500 shadow-amber-950/40 bg-neutral-900/95 cursor-pointer'
+          : 'bg-neutral-900/90 hover:border-white/20 cursor-pointer'
       }`}
     >
       {/* Handles */}
       <Handle
+        key={`target-${positionSide}`}
         type="target"
         position={positionSide === 'left' ? Position.Right : Position.Left}
         id="target"
         className="!w-3 !h-3 !bg-neutral-950 !border-2 !border-indigo-400 transition-transform hover:!scale-125"
       />
       <Handle
+        key={`source-${positionSide}`}
         type="source"
         position={positionSide === 'left' ? Position.Right : Position.Left}
         id="source"
@@ -128,10 +147,53 @@ export const CapabilityNode = memo(({ data }: NodeProps) => {
           </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border shrink-0 ${config.badgeColor}`}>
-            {isStagedAdd ? '+ STAGED' : isStagedDelete ? '- DETACH' : config.badge}
+          <span
+            className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border shrink-0 ${
+              isStagedModify
+                ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
+                : config.badgeColor
+            }`}
+          >
+            {isStagedAdd
+              ? '+ STAGED'
+              : isStagedDelete
+              ? '- DETACH'
+              : isStagedModify
+              ? '~ MODIFIED'
+              : config.badge}
           </span>
 
+          {/* Edit Button */}
+          {nodeData.onEdit && !isStagedDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                nodeData.onEdit?.();
+              }}
+              title="Edit Configuration"
+              className="p-1 rounded-md bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-all cursor-pointer"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Undo Modification Button */}
+          {isStagedModify && nodeData.onUndoModify && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                nodeData.onUndoModify?.();
+              }}
+              title="Undo Staged Modifications"
+              className="p-1 rounded-md bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/60 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Detach / Discard Button */}
           {nodeData.onDetach && (
             <>
               {isStagedAdd ? (

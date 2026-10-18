@@ -40,6 +40,11 @@ export function App() {
   const [isComputeModalOpen, setIsComputeModalOpen] = useState(false);
   const [isRebootNotificationOpen, setIsRebootNotificationOpen] = useState(false);
 
+  // Active editing targets for capability nodes
+  const [editingDisk, setEditingDisk] = useState<DiskDevice | null>(null);
+  const [editingInterface, setEditingInterface] = useState<NetworkInterfaceDevice | null>(null);
+  const [editingPci, setEditingPci] = useState<PCIDevice | null>(null);
+
   // Auto-select first domain if none selected
   useEffect(() => {
     if (!selectedDomainId && domains.length > 0) {
@@ -59,10 +64,13 @@ export function App() {
   const {
     stagedAdditions,
     stagedDeletions,
+    stagedModifications,
     isApplying,
     requiresReboot,
     stageAdd,
     unstageAdd,
+    stageModify,
+    unstageModify,
     toggleDelete,
     discardAll,
     applyChanges,
@@ -127,6 +135,20 @@ export function App() {
     [stageAdd]
   );
 
+  const handleSaveEditDisk = useCallback(
+    (originalId: string, updatedDisk: DiskDevice, rebootRequired: boolean) => {
+      stageModify({
+        type: 'storage',
+        originalId,
+        disk: updatedDisk,
+        rebootRequired,
+        label: `Disk (${updatedDisk.targetDev})`,
+      });
+      setEditingDisk(null);
+    },
+    [stageModify]
+  );
+
   const handleStageNetwork = useCallback(
     (iface: NetworkInterfaceDevice, rebootRequired: boolean) => {
       stageAdd({
@@ -138,6 +160,20 @@ export function App() {
       });
     },
     [stageAdd]
+  );
+
+  const handleSaveEditInterface = useCallback(
+    (originalId: string, updatedInterface: NetworkInterfaceDevice, rebootRequired: boolean) => {
+      stageModify({
+        type: 'network',
+        originalId,
+        network: updatedInterface,
+        rebootRequired,
+        label: `vNIC (${updatedInterface.source})`,
+      });
+      setEditingInterface(null);
+    },
+    [stageModify]
   );
 
   const handleStagePci = useCallback(
@@ -153,17 +189,31 @@ export function App() {
     [stageAdd]
   );
 
+  const handleSaveEditPci = useCallback(
+    (originalId: string, updatedPci: PCIDevice, rebootRequired: boolean) => {
+      stageModify({
+        type: 'pci',
+        originalId,
+        pci: updatedPci,
+        rebootRequired,
+        label: `PCI (${updatedPci.productName || updatedPci.id})`,
+      });
+      setEditingPci(null);
+    },
+    [stageModify]
+  );
+
   const handleStageCompute = useCallback(
     (compute: ComputeConfig, rebootRequired: boolean) => {
-      stageAdd({
+      stageModify({
         type: 'compute',
+        originalId: 'compute-node',
         compute,
         rebootRequired,
-        id: 'compute-staged',
-        label: `Compute Sizing (${compute.vcpus} vCPUs)`,
+        label: `Compute (${compute.vcpus} vCPUs)`,
       });
     },
-    [stageAdd]
+    [stageModify]
   );
 
   // Apply Changes execution
@@ -208,6 +258,11 @@ export function App() {
       console.error('Failed to restart domain:', err);
     }
   };
+
+  const handleEditCompute = useCallback(() => setIsComputeModalOpen(true), []);
+  const handleEditDisk = useCallback((disk: DiskDevice) => setEditingDisk(disk), []);
+  const handleEditInterface = useCallback((nic: NetworkInterfaceDevice) => setEditingInterface(nic), []);
+  const handleEditPci = useCallback((pci: PCIDevice) => setEditingPci(pci), []);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#09090b] text-neutral-100 overflow-hidden font-sans">
@@ -265,8 +320,14 @@ export function App() {
               isXmlOpen={isXmlOpen}
               stagedAdditions={stagedAdditions}
               stagedDeletions={stagedDeletions}
+              stagedModifications={stagedModifications}
               onUnstageAdd={unstageAdd}
+              onUnstageModify={unstageModify}
               onToggleDelete={toggleDelete}
+              onEditCompute={handleEditCompute}
+              onEditDisk={handleEditDisk}
+              onEditInterface={handleEditInterface}
+              onEditPci={handleEditPci}
               onDiscardDraft={discardAll}
               onApplyDraft={handleApplyChanges}
               isApplyingDraft={isApplying}
@@ -291,40 +352,55 @@ export function App() {
         onSelectAction={handlePaletteAction}
       />
 
-      {/* Add Storage Modal */}
+      {/* Add / Edit Storage Modal */}
       {domain && (
         <AddStorageModal
-          isOpen={storageModalState.isOpen}
-          onClose={() => setStorageModalState({ isOpen: false, mode: 'disk' })}
+          isOpen={storageModalState.isOpen || !!editingDisk}
+          onClose={() => {
+            setStorageModalState({ isOpen: false, mode: 'disk' });
+            setEditingDisk(null);
+          }}
           domain={domain}
           pools={pools}
-          initialMode={storageModalState.mode}
+          initialMode={editingDisk ? (editingDisk.deviceType === 'cdrom' ? 'cdrom' : 'disk') : storageModalState.mode}
           initialSourceFile={storageModalState.initialPath}
+          editDisk={editingDisk || undefined}
           onStageDisk={handleStageDisk}
+          onSaveEdit={handleSaveEditDisk}
         />
       )}
 
-      {/* Add Network Interface Modal */}
+      {/* Add / Edit Network Interface Modal */}
       {domain && (
         <AddNetworkModal
-          isOpen={networkModalState.isOpen}
-          onClose={() => setNetworkModalState({ isOpen: false })}
+          isOpen={networkModalState.isOpen || !!editingInterface}
+          onClose={() => {
+            setNetworkModalState({ isOpen: false });
+            setEditingInterface(null);
+          }}
           domain={domain}
           networks={networks}
           initialNetwork={networkModalState.initialNetwork}
+          editInterface={editingInterface || undefined}
           onStageNetwork={handleStageNetwork}
+          onSaveEdit={handleSaveEditInterface}
         />
       )}
 
-      {/* Add PCI Hostdev Modal */}
+      {/* Add / Edit PCI Hostdev Modal */}
       {domain && (
         <AddPciModal
-          isOpen={pciModalState.isOpen}
-          onClose={() => setPciModalState({ isOpen: false })}
+          isOpen={pciModalState.isOpen || !!editingPci}
+          onClose={() => {
+            setPciModalState({ isOpen: false });
+            setEditingPci(null);
+          }}
           domain={domain}
           pciDevices={pciDevices}
           initialDeviceName={pciModalState.initialDeviceName}
+          editPci={editingPci || undefined}
           onStagePci={handleStagePci}
+          onSaveEdit={handleSaveEditPci}
         />
       )}
 
@@ -334,6 +410,10 @@ export function App() {
           isOpen={isComputeModalOpen}
           onClose={() => setIsComputeModalOpen(false)}
           domain={domain}
+          initialCompute={(() => {
+            const mod = stagedModifications.get('compute-node') || stagedModifications.get('compute');
+            return mod?.type === 'compute' ? mod.compute : domain.compute;
+          })()}
           onStageCompute={handleStageCompute}
         />
       )}

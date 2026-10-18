@@ -63,6 +63,11 @@
   animation: dash-flow 1s linear infinite;
 }
 
+.edge-staged-modify {
+  stroke-dasharray: 6 4;
+  animation: dash-flow 1.5s linear infinite;
+}
+
 .edge-staged-delete {
   stroke-dasharray: 4 4;
 }

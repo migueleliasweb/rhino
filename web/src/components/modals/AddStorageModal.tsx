@@ -13,7 +13,9 @@ interface AddStorageModalProps {
   pools: StoragePool[];
   initialMode?: 'disk' | 'cdrom';
   initialSourceFile?: string;
+  editDisk?: DiskDevice;
   onStageDisk: (disk: DiskDevice, rebootRequired: boolean) => void;
+  onSaveEdit?: (originalId: string, updatedDisk: DiskDevice, rebootRequired: boolean) => void;
 }
 
 export const AddStorageModal: React.FC<AddStorageModalProps> = ({
@@ -23,21 +25,63 @@ export const AddStorageModal: React.FC<AddStorageModalProps> = ({
   pools,
   initialMode = 'disk',
   initialSourceFile = '',
+  editDisk,
   onStageDisk,
+  onSaveEdit,
 }) => {
-  const [deviceType, setDeviceType] = useState<'disk' | 'cdrom'>(initialMode);
-  const [driverFormat, setDriverFormat] = useState<'qcow2' | 'raw'>('qcow2');
-  const [bus, setBus] = useState<'virtio' | 'sata' | 'scsi' | 'ide'>(
-    initialMode === 'cdrom' ? 'sata' : 'virtio'
+  const isEditing = !!editDisk;
+  const [deviceType, setDeviceType] = useState<'disk' | 'cdrom'>(
+    editDisk ? (editDisk.deviceType === 'cdrom' ? 'cdrom' : 'disk') : initialMode
   );
-  const [selectedPoolVolume, setSelectedPoolVolume] = useState<string>(initialSourceFile || '');
-  const [customPath, setCustomPath] = useState<string>(initialSourceFile || '');
-  const [useCustomPath, setUseCustomPath] = useState<boolean>(!initialSourceFile);
-  const [readonly, setReadonly] = useState<boolean>(initialMode === 'cdrom');
-  const [bootOrder, setBootOrder] = useState<number>(0);
+  const [driverFormat, setDriverFormat] = useState<'qcow2' | 'raw'>(
+    (editDisk?.driverFormat as any) || 'qcow2'
+  );
+  const [bus, setBus] = useState<'virtio' | 'sata' | 'scsi' | 'ide'>(
+    (editDisk?.bus as any) || (initialMode === 'cdrom' ? 'sata' : 'virtio')
+  );
+  const [selectedPoolVolume, setSelectedPoolVolume] = useState<string>(
+    editDisk?.sourceFile || initialSourceFile || ''
+  );
+  const [customPath, setCustomPath] = useState<string>(
+    editDisk?.sourceFile || initialSourceFile || ''
+  );
+  const [useCustomPath, setUseCustomPath] = useState<boolean>(
+    !!editDisk?.sourceFile || !initialSourceFile
+  );
+  const [readonly, setReadonly] = useState<boolean>(
+    editDisk ? editDisk.readonly : initialMode === 'cdrom'
+  );
+  const [bootOrder, setBootOrder] = useState<number>(editDisk?.bootOrder || 0);
+
+  // When editDisk or initial values change and modal opens, reset form state
+  React.useEffect(() => {
+    if (isOpen) {
+      if (editDisk) {
+        setDeviceType(editDisk.deviceType === 'cdrom' ? 'cdrom' : 'disk');
+        setDriverFormat((editDisk.driverFormat as any) || 'qcow2');
+        setBus((editDisk.bus as any) || 'virtio');
+        setCustomPath(editDisk.sourceFile || '');
+        setSelectedPoolVolume(editDisk.sourceFile || '');
+        setUseCustomPath(true);
+        setReadonly(editDisk.readonly);
+        setBootOrder(editDisk.bootOrder);
+        setTargetDev(editDisk.targetDev);
+      } else {
+        setDeviceType(initialMode);
+        setDriverFormat('qcow2');
+        setBus(initialMode === 'cdrom' ? 'sata' : 'virtio');
+        setSelectedPoolVolume(initialSourceFile || '');
+        setCustomPath(initialSourceFile || '');
+        setUseCustomPath(!initialSourceFile);
+        setReadonly(initialMode === 'cdrom');
+        setBootOrder(0);
+      }
+    }
+  }, [isOpen, editDisk, initialMode, initialSourceFile]);
 
   // Suggest next targetDev (e.g. vda -> vdb, sda -> sdb)
   const suggestedTargetDev = useMemo(() => {
+    if (editDisk) return editDisk.targetDev;
     const prefix = bus === 'virtio' ? 'vd' : bus === 'ide' ? 'hd' : 'sd';
     const usedLetters = new Set<string>();
 
@@ -54,14 +98,16 @@ export const AddStorageModal: React.FC<AddStorageModalProps> = ({
       }
     }
     return `${prefix}z`;
-  }, [bus, domain.disks]);
+  }, [bus, domain.disks, editDisk]);
 
-  const [targetDev, setTargetDev] = useState<string>(suggestedTargetDev);
+  const [targetDev, setTargetDev] = useState<string>(editDisk?.targetDev || suggestedTargetDev);
 
-  // When bus changes, update suggested target dev
+  // When bus changes and not editing, update suggested target dev
   React.useEffect(() => {
-    setTargetDev(suggestedTargetDev);
-  }, [suggestedTargetDev]);
+    if (!editDisk) {
+      setTargetDev(suggestedTargetDev);
+    }
+  }, [suggestedTargetDev, editDisk]);
 
   if (!isOpen) return null;
 
@@ -87,7 +133,11 @@ export const AddStorageModal: React.FC<AddStorageModalProps> = ({
       capacityBytes: 0n,
     });
 
-    onStageDisk(disk, requiresReboot);
+    if (isEditing && onSaveEdit && editDisk) {
+      onSaveEdit(editDisk.id, disk, requiresReboot);
+    } else {
+      onStageDisk(disk, requiresReboot);
+    }
     onClose();
   };
 
@@ -102,7 +152,13 @@ export const AddStorageModal: React.FC<AddStorageModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-semibold text-white">
-                {deviceType === 'cdrom' ? 'Attach CD-ROM / ISO Media' : 'Attach Virtual Storage Disk'}
+                {isEditing
+                  ? deviceType === 'cdrom'
+                    ? 'Edit CD-ROM / ISO Media'
+                    : 'Edit Virtual Storage Disk'
+                  : deviceType === 'cdrom'
+                  ? 'Attach CD-ROM / ISO Media'
+                  : 'Attach Virtual Storage Disk'}
               </h2>
               <p className="text-xs text-neutral-400">Target VM: <span className="text-neutral-200 font-medium">{domain.summary?.name}</span></p>
             </div>
@@ -306,7 +362,7 @@ export const AddStorageModal: React.FC<AddStorageModalProps> = ({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-medium bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50 transition-all cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Stage to Canvas</span>
+              <span>{isEditing ? 'Save Modifications' : 'Stage to Canvas'}</span>
             </button>
           </div>
         </form>

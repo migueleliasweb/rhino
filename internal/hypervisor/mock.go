@@ -327,6 +327,7 @@ func (c *MockClient) ListDomains(_ context.Context) ([]DomainSummary, error) {
 	for _, rec := range c.domains {
 		res = append(res, rec.Summary)
 	}
+	SortDomains(res)
 	return res, nil
 }
 

@@ -1,11 +1,12 @@
 import React from 'react';
 import { Check, RotateCcw, AlertTriangle, Loader2, Layers } from 'lucide-react';
-import type { StagedAddition } from '@/hooks/useDraftChanges';
+import type { StagedAddition, StagedModification } from '@/hooks/useDraftChanges';
 
 interface DraftCommitBarProps {
   hasChanges: boolean;
   stagedAdditions: StagedAddition[];
   stagedDeletions: Set<string>;
+  stagedModifications?: Map<string, StagedModification>;
   requiresReboot: boolean;
   isApplying: boolean;
   onDiscard: () => void;
@@ -16,6 +17,7 @@ export const DraftCommitBar: React.FC<DraftCommitBarProps> = ({
   hasChanges,
   stagedAdditions,
   stagedDeletions,
+  stagedModifications = new Map(),
   requiresReboot,
   isApplying,
   onDiscard,
@@ -25,6 +27,7 @@ export const DraftCommitBar: React.FC<DraftCommitBarProps> = ({
 
   const addCount = stagedAdditions.length;
   const delCount = stagedDeletions.size;
+  const modCount = stagedModifications.size;
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-[#12131c]/95 border border-white/15 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 duration-200">
@@ -42,7 +45,11 @@ export const DraftCommitBar: React.FC<DraftCommitBarProps> = ({
             {addCount > 0 && (
               <span className="text-emerald-400 font-medium">+{addCount} to add</span>
             )}
-            {addCount > 0 && delCount > 0 && <span>•</span>}
+            {addCount > 0 && modCount > 0 && <span>•</span>}
+            {modCount > 0 && (
+              <span className="text-amber-400 font-medium">~{modCount} modified</span>
+            )}
+            {(addCount > 0 || modCount > 0) && delCount > 0 && <span>•</span>}
             {delCount > 0 && (
               <span className="text-rose-400 font-medium">-{delCount} to detach</span>
             )}

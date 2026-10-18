@@ -2,6 +2,8 @@ package hypervisor
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -38,6 +40,34 @@ func (s DomainState) String() string {
 	default:
 		return "nostate"
 	}
+}
+
+// StatePriority returns the display priority for domain states:
+// Running (0) < Paused (1) < Shutoff/Shutdown (2) < Other (3)
+func StatePriority(s DomainState) int {
+	switch s {
+	case StateRunning:
+		return 0
+	case StatePaused:
+		return 1
+	case StateShutoff, StateShutdown, StateNoState:
+		return 2
+	default:
+		return 3
+	}
+}
+
+// SortDomains sorts a slice of DomainSummary primarily by StatePriority
+// and secondarily alphabetically by Name (case-insensitive).
+func SortDomains(domains []DomainSummary) {
+	sort.Slice(domains, func(i, j int) bool {
+		pi := StatePriority(domains[i].State)
+		pj := StatePriority(domains[j].State)
+		if pi != pj {
+			return pi < pj
+		}
+		return strings.ToLower(domains[i].Name) < strings.ToLower(domains[j].Name)
+	})
 }
 
 // DomainSummary represents a concise summary of a domain.

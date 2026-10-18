@@ -11,7 +11,9 @@ interface AddNetworkModalProps {
   domain: DomainDetail;
   networks: VirtualNetwork[];
   initialNetwork?: string;
+  editInterface?: NetworkInterfaceDevice;
   onStageNetwork: (iface: NetworkInterfaceDevice, rebootRequired: boolean) => void;
+  onSaveEdit?: (originalId: string, updatedIface: NetworkInterfaceDevice, rebootRequired: boolean) => void;
 }
 
 function generateMac(): string {
@@ -29,14 +31,35 @@ export const AddNetworkModal: React.FC<AddNetworkModalProps> = ({
   domain,
   networks,
   initialNetwork = '',
+  editInterface,
   onStageNetwork,
+  onSaveEdit,
 }) => {
+  const isEditing = !!editInterface;
   const [source, setSource] = useState<string>(
-    initialNetwork || (networks.length > 0 ? networks[0].name : 'default')
+    editInterface?.source || initialNetwork || (networks.length > 0 ? networks[0].name : 'default')
   );
-  const [interfaceType, setInterfaceType] = useState<'network' | 'bridge'>('network');
-  const [model, setModel] = useState<string>('virtio');
-  const [macAddress, setMacAddress] = useState<string>(generateMac());
+  const [interfaceType, setInterfaceType] = useState<'network' | 'bridge'>(
+    (editInterface?.interfaceType as any) || 'network'
+  );
+  const [model, setModel] = useState<string>(editInterface?.model || 'virtio');
+  const [macAddress, setMacAddress] = useState<string>(editInterface?.macAddress || generateMac());
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (editInterface) {
+        setSource(editInterface.source);
+        setInterfaceType((editInterface.interfaceType as any) || 'network');
+        setModel(editInterface.model || 'virtio');
+        setMacAddress(editInterface.macAddress);
+      } else {
+        setSource(initialNetwork || (networks.length > 0 ? networks[0].name : 'default'));
+        setInterfaceType('network');
+        setModel('virtio');
+        setMacAddress(generateMac());
+      }
+    }
+  }, [isOpen, editInterface, initialNetwork, networks]);
 
   if (!isOpen) return null;
 
@@ -45,15 +68,19 @@ export const AddNetworkModal: React.FC<AddNetworkModalProps> = ({
     if (!source) return;
 
     const iface = create(NetworkInterfaceDeviceSchema, {
-      id: `interface-${macAddress.replace(/:/g, '')}`,
+      id: editInterface?.id || `interface-${macAddress.replace(/:/g, '')}`,
       macAddress,
       interfaceType,
       source,
       model,
-      ipAddresses: [],
+      ipAddresses: editInterface?.ipAddresses || [],
     });
 
-    onStageNetwork(iface, false);
+    if (isEditing && onSaveEdit && editInterface) {
+      onSaveEdit(editInterface.id, iface, false);
+    } else {
+      onStageNetwork(iface, false);
+    }
     onClose();
   };
 
@@ -67,7 +94,9 @@ export const AddNetworkModal: React.FC<AddNetworkModalProps> = ({
               <Network className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-white">Attach Virtual Network Interface (vNIC)</h2>
+              <h2 className="text-sm font-semibold text-white">
+                {isEditing ? 'Edit Virtual Network Interface (vNIC)' : 'Attach Virtual Network Interface (vNIC)'}
+              </h2>
               <p className="text-xs text-neutral-400">Target VM: <span className="text-neutral-200 font-medium">{domain.summary?.name}</span></p>
             </div>
           </div>
@@ -184,7 +213,7 @@ export const AddNetworkModal: React.FC<AddNetworkModalProps> = ({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-medium bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-950/50 transition-all cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Stage to Canvas</span>
+              <span>{isEditing ? 'Save Modifications' : 'Stage to Canvas'}</span>
             </button>
           </div>
         </form>

@@ -9,6 +9,7 @@ interface ConfigureComputeModalProps {
   isOpen: boolean;
   onClose: () => void;
   domain: DomainDetail;
+  initialCompute?: ComputeConfig;
   onStageCompute: (compute: ComputeConfig, rebootRequired: boolean) => void;
 }
 
@@ -16,9 +17,10 @@ export const ConfigureComputeModal: React.FC<ConfigureComputeModalProps> = ({
   isOpen,
   onClose,
   domain,
+  initialCompute,
   onStageCompute,
 }) => {
-  const currentCompute = domain.compute;
+  const currentCompute = initialCompute || domain.compute;
 
   const [vcpus, setVcpus] = useState<number>(currentCompute?.vcpus || 4);
   const [sockets, setSockets] = useState<number>(currentCompute?.sockets || 1);
@@ -27,6 +29,19 @@ export const ConfigureComputeModal: React.FC<ConfigureComputeModalProps> = ({
   const [memoryGib, setMemoryGib] = useState<number>(
     Math.round((Number(currentCompute?.memoryKib || 8388608) / (1024 * 1024)) * 10) / 10
   );
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const activeCompute = initialCompute || domain.compute;
+      setVcpus(activeCompute?.vcpus || 4);
+      setSockets(activeCompute?.sockets || 1);
+      setCores(activeCompute?.cores || 4);
+      setThreads(activeCompute?.threads || 1);
+      setMemoryGib(
+        Math.round((Number(activeCompute?.memoryKib || 8388608) / (1024 * 1024)) * 10) / 10
+      );
+    }
+  }, [isOpen, initialCompute, domain.compute]);
 
   if (!isOpen) return null;
 

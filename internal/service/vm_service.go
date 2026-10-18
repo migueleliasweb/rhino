@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -42,6 +44,19 @@ func toProtoDomainState(s hypervisor.DomainState) rhinov1.DomainState {
 	}
 }
 
+func protoStatePriority(s rhinov1.DomainState) int {
+	switch s {
+	case rhinov1.DomainState_DOMAIN_STATE_RUNNING:
+		return 0
+	case rhinov1.DomainState_DOMAIN_STATE_PAUSED:
+		return 1
+	case rhinov1.DomainState_DOMAIN_STATE_SHUTOFF, rhinov1.DomainState_DOMAIN_STATE_SHUTDOWN, rhinov1.DomainState_DOMAIN_STATE_NOSTATE:
+		return 2
+	default:
+		return 3
+	}
+}
+
 // NewVMServiceHandler creates a new VMServiceHandler.
 func NewVMServiceHandler(client hypervisor.HypervisorClient) *VMServiceHandler {
 	return &VMServiceHandler{client: client}
@@ -76,6 +91,15 @@ func (s *VMServiceHandler) ListDomains(
 			Arch:         d.Arch,
 		})
 	}
+
+	sort.Slice(res, func(i, j int) bool {
+		pi := protoStatePriority(res[i].State)
+		pj := protoStatePriority(res[j].State)
+		if pi != pj {
+			return pi < pj
+		}
+		return strings.ToLower(res[i].Name) < strings.ToLower(res[j].Name)
+	})
 
 	return connect.NewResponse(&rhinov1.ListDomainsResponse{
 		Domains: res,

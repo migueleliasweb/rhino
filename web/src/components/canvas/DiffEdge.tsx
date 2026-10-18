@@ -2,7 +2,7 @@ import React from 'react';
 import { BaseEdge, getBezierPath, type EdgeProps } from '@xyflow/react';
 
 export interface DiffEdgeData {
-  status?: 'normal' | 'staged-add' | 'staged-delete';
+  status?: 'normal' | 'staged-add' | 'staged-delete' | 'staged-modify';
   label?: string;
 }
 
@@ -44,6 +44,10 @@ export const DiffEdge: React.FC<EdgeProps> = ({
     strokeWidth = 2;
     strokeDasharray = '5 5';
     className = 'edge-staged-delete';
+  } else if (status === 'staged-modify') {
+    strokeColor = '#f59e0b'; // amber
+    strokeWidth = 2.5;
+    className = 'edge-staged-modify';
   }
 
   return (
@@ -75,6 +79,8 @@ export const DiffEdge: React.FC<EdgeProps> = ({
                 ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
                 : status === 'staged-delete'
                 ? 'bg-rose-950/80 border-rose-500/50 text-rose-300'
+                : status === 'staged-modify'
+                ? 'bg-amber-950/80 border-amber-500/50 text-amber-300'
                 : 'bg-neutral-900/80 border-neutral-700/50 text-neutral-300'
             }`}
           >

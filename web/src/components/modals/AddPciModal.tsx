@@ -11,7 +11,9 @@ interface AddPciModalProps {
   domain: DomainDetail;
   pciDevices: HostNodeDevice[];
   initialDeviceName?: string;
+  editPci?: PCIDevice;
   onStagePci: (pci: PCIDevice, rebootRequired: boolean) => void;
+  onSaveEdit?: (originalId: string, updatedPci: PCIDevice, rebootRequired: boolean) => void;
 }
 
 export const AddPciModal: React.FC<AddPciModalProps> = ({
@@ -20,11 +22,36 @@ export const AddPciModal: React.FC<AddPciModalProps> = ({
   domain,
   pciDevices,
   initialDeviceName = '',
+  editPci,
   onStagePci,
+  onSaveEdit,
 }) => {
-  const [selectedDeviceName, setSelectedDeviceName] = useState<string>(
-    initialDeviceName || (pciDevices.length > 0 ? pciDevices[0].name : '')
-  );
+  const isEditing = !!editPci;
+
+  const [selectedDeviceName, setSelectedDeviceName] = useState<string>(() => {
+    if (editPci) {
+      const match = pciDevices.find(
+        (d) => d.domain === editPci.domain && d.bus === editPci.bus && d.slot === editPci.slot && d.function === editPci.function
+      );
+      if (match) return match.name;
+    }
+    return initialDeviceName || (pciDevices.length > 0 ? pciDevices[0].name : '');
+  });
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (editPci) {
+        const match = pciDevices.find(
+          (d) => d.domain === editPci.domain && d.bus === editPci.bus && d.slot === editPci.slot && d.function === editPci.function
+        );
+        if (match) {
+          setSelectedDeviceName(match.name);
+          return;
+        }
+      }
+      setSelectedDeviceName(initialDeviceName || (pciDevices.length > 0 ? pciDevices[0].name : ''));
+    }
+  }, [isOpen, editPci, initialDeviceName, pciDevices]);
 
   const selectedDevice = useMemo(() => {
     return pciDevices.find((d) => d.name === selectedDeviceName) || pciDevices[0];
@@ -37,7 +64,7 @@ export const AddPciModal: React.FC<AddPciModalProps> = ({
     if (!selectedDevice) return;
 
     const pci = create(PCIDeviceSchema, {
-      id: `hostdev-${selectedDevice.domain}_${selectedDevice.bus}_${selectedDevice.slot}_${selectedDevice.function}`,
+      id: editPci?.id || `hostdev-${selectedDevice.domain}_${selectedDevice.bus}_${selectedDevice.slot}_${selectedDevice.function}`,
       domain: selectedDevice.domain || '0x0000',
       bus: selectedDevice.bus || '0x00',
       slot: selectedDevice.slot || '0x00',
@@ -49,7 +76,11 @@ export const AddPciModal: React.FC<AddPciModalProps> = ({
       iommuGroup: selectedDevice.iommuGroup,
     });
 
-    onStagePci(pci, true);
+    if (isEditing && onSaveEdit && editPci) {
+      onSaveEdit(editPci.id, pci, true);
+    } else {
+      onStagePci(pci, true);
+    }
     onClose();
   };
 
