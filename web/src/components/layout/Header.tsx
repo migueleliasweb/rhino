@@ -1,11 +1,12 @@
 import React from 'react';
-import { Server, Activity, Plus } from 'lucide-react';
+import { Server, Activity, Plus, Search } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
 import type { HostInfo } from '@/gen/rhino/v1/host_pb';
 
 interface HeaderProps {
   hostInfo: HostInfo | null;
   onNewVm?: () => void;
+  onOpenPalette?: () => void;
   activeDomainName?: string;
 }
 
@@ -68,9 +69,21 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">
+        {onOpenPalette && (
+          <button
+            onClick={onOpenPalette}
+            title="Open Command Palette (Cmd+K)"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-xs text-neutral-400 hover:text-white border border-white/10 transition-colors cursor-pointer"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span>Search or Add Hardware</span>
+            <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono">⌘K</span>
+          </button>
+        )}
+
         <button
           onClick={onNewVm}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/40 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/40 transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New VM</span>

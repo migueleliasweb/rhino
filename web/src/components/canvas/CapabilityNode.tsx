@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { HardDrive, Network, Cpu, Zap, Disc, Server } from 'lucide-react';
+import { HardDrive, Network, Cpu, Zap, Disc, Server, Trash2, X, RotateCcw } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
 import type { DiskDevice, NetworkInterfaceDevice, PCIDevice, ComputeConfig } from '@/gen/rhino/v1/hardware_pb';
 
@@ -93,13 +93,13 @@ export const CapabilityNode = memo(({ data }: NodeProps) => {
 
   return (
     <div
-      className={`min-w-[260px] max-w-[320px] rounded-xl border backdrop-blur-md shadow-xl transition-all duration-200 select-none ${
+      className={`group min-w-[260px] max-w-[320px] rounded-xl border backdrop-blur-md shadow-xl transition-all duration-200 select-none ${
         config.borderColor
       } ${
         isStagedAdd
-          ? 'ring-2 ring-emerald-500/70 border-emerald-500 shadow-emerald-950/40'
+          ? 'ring-2 ring-emerald-500/70 border-emerald-500 shadow-emerald-950/40 bg-neutral-900/95'
           : isStagedDelete
-          ? 'ring-2 ring-rose-500/70 border-rose-500 opacity-60'
+          ? 'ring-2 ring-rose-500/70 border-rose-500 opacity-60 bg-neutral-900/90'
           : 'bg-neutral-900/90'
       }`}
     >
@@ -127,9 +127,53 @@ export const CapabilityNode = memo(({ data }: NodeProps) => {
             {config.title}
           </span>
         </div>
-        <span className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border shrink-0 ${config.badgeColor}`}>
-          {isStagedAdd ? '+ STAGED' : isStagedDelete ? '- DETACH' : config.badge}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border shrink-0 ${config.badgeColor}`}>
+            {isStagedAdd ? '+ STAGED' : isStagedDelete ? '- DETACH' : config.badge}
+          </span>
+
+          {nodeData.onDetach && (
+            <>
+              {isStagedAdd ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    nodeData.onDetach?.();
+                  }}
+                  title="Discard Staged Addition"
+                  className="p-1 rounded-md bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 transition-colors cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              ) : isStagedDelete ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    nodeData.onDetach?.();
+                  }}
+                  title="Undo Staged Detachment"
+                  className="p-1 rounded-md bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              ) : type !== 'compute' ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    nodeData.onDetach?.();
+                  }}
+                  title="Stage Device for Detachment"
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-neutral-800 hover:bg-rose-500/30 text-neutral-400 hover:text-rose-300 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Body details */}

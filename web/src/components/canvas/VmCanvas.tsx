@@ -18,8 +18,10 @@ import { VmCoreNode } from './VmCoreNode';
 import { CapabilityNode } from './CapabilityNode';
 import { DiffEdge } from './DiffEdge';
 import { CanvasToolbar } from './CanvasToolbar';
+import { DraftCommitBar } from './DraftCommitBar';
 
 import type { DomainDetail, TelemetryUpdate } from '@/gen/rhino/v1/vm_pb';
+import type { StagedAddition } from '@/hooks/useDraftChanges';
 
 const nodeTypes = {
   vmCore: VmCoreNode,
@@ -39,6 +41,14 @@ interface VmCanvasProps {
   onAddHardware?: () => void;
   onToggleXml?: () => void;
   isXmlOpen?: boolean;
+  stagedAdditions?: StagedAddition[];
+  stagedDeletions?: Set<string>;
+  onUnstageAdd?: (id: string) => void;
+  onToggleDelete?: (id: string) => void;
+  onDiscardDraft?: () => void;
+  onApplyDraft?: () => void;
+  isApplyingDraft?: boolean;
+  requiresReboot?: boolean;
 }
 
 const VmCanvasInner: React.FC<VmCanvasProps> = ({
@@ -50,8 +60,16 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
   onAddHardware,
   onToggleXml,
   isXmlOpen,
+  stagedAdditions = [],
+  stagedDeletions = new Set(),
+  onUnstageAdd,
+  onToggleDelete,
+  onDiscardDraft,
+  onApplyDraft,
+  isApplyingDraft = false,
+  requiresReboot = false,
 }) => {
-  // Generate blueprint nodes and edges
+  // Generate blueprint nodes and edges combining committed base domain and draft mutations
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
@@ -74,16 +92,24 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
     });
 
     // Compute Node (top-left)
-    if (domain.compute) {
-      const compId = 'compute-node';
+    // Check if compute was staged for reconfiguration
+    const stagedCompute = stagedAdditions.find((a) => a.type === 'compute');
+    const computeConfig = stagedCompute?.compute || domain.compute;
+
+    if (computeConfig) {
+      const compId = stagedCompute ? stagedCompute.id : 'compute-node';
+      const isStaged = !!stagedCompute;
+
       nodes.push({
         id: compId,
         type: 'capability',
         position: { x: 60, y: 80 },
         data: {
           type: 'compute',
-          compute: domain.compute,
+          compute: computeConfig,
           positionSide: 'left',
+          status: isStaged ? 'staged-add' : 'normal',
+          onDetach: isStaged && onUnstageAdd ? () => onUnstageAdd(stagedCompute.id) : undefined,
         },
       });
 
@@ -92,14 +118,21 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
         source: compId,
         target: 'vm-core',
         type: 'diffEdge',
-        data: { status: 'normal' },
+        data: {
+          status: isStaged ? 'staged-add' : 'normal',
+          label: isStaged ? '+ Staged' : undefined,
+        },
       });
     }
 
     // Storage Nodes (stacked on the left below compute)
     let diskY = 260;
+
+    // 1. Existing disks
     domain.disks.forEach((disk, idx) => {
       const diskId = disk.id || `disk-${disk.targetDev || idx}`;
+      const isDeleted = stagedDeletions.has(diskId) || stagedDeletions.has(`disk-${disk.targetDev}`);
+
       nodes.push({
         id: diskId,
         type: 'capability',
@@ -108,6 +141,8 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
           type: 'storage',
           disk,
           positionSide: 'left',
+          status: isDeleted ? 'staged-delete' : 'normal',
+          onDetach: onToggleDelete ? () => onToggleDelete(diskId) : undefined,
         },
       });
 
@@ -116,16 +151,54 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
         source: diskId,
         target: 'vm-core',
         type: 'diffEdge',
-        data: { status: 'normal' },
+        data: {
+          status: isDeleted ? 'staged-delete' : 'normal',
+          label: isDeleted ? '- Detach' : undefined,
+        },
       });
 
       diskY += 170;
     });
 
+    // 2. Staged addition disks
+    stagedAdditions
+      .filter((a) => a.type === 'storage')
+      .forEach((item) => {
+        nodes.push({
+          id: item.id,
+          type: 'capability',
+          position: { x: 60, y: diskY },
+          data: {
+            type: 'storage',
+            disk: item.disk,
+            positionSide: 'left',
+            status: 'staged-add',
+            onDetach: onUnstageAdd ? () => onUnstageAdd(item.id) : undefined,
+          },
+        });
+
+        edges.push({
+          id: `edge-${item.id}-core`,
+          source: item.id,
+          target: 'vm-core',
+          type: 'diffEdge',
+          data: {
+            status: 'staged-add',
+            label: '+ Staged',
+          },
+        });
+
+        diskY += 170;
+      });
+
     // Network Nodes (stacked on the right side)
     let netY = 100;
+
+    // 1. Existing interfaces
     domain.interfaces.forEach((nic, idx) => {
       const netId = nic.id || `interface-${nic.macAddress.replace(/:/g, '') || idx}`;
+      const isDeleted = stagedDeletions.has(netId);
+
       nodes.push({
         id: netId,
         type: 'capability',
@@ -134,6 +207,8 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
           type: 'network',
           network: nic,
           positionSide: 'right',
+          status: isDeleted ? 'staged-delete' : 'normal',
+          onDetach: onToggleDelete ? () => onToggleDelete(netId) : undefined,
         },
       });
 
@@ -142,16 +217,54 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
         source: 'vm-core',
         target: netId,
         type: 'diffEdge',
-        data: { status: 'normal' },
+        data: {
+          status: isDeleted ? 'staged-delete' : 'normal',
+          label: isDeleted ? '- Detach' : undefined,
+        },
       });
 
       netY += 170;
     });
 
+    // 2. Staged addition interfaces
+    stagedAdditions
+      .filter((a) => a.type === 'network')
+      .forEach((item) => {
+        nodes.push({
+          id: item.id,
+          type: 'capability',
+          position: { x: 920, y: netY },
+          data: {
+            type: 'network',
+            network: item.network,
+            positionSide: 'right',
+            status: 'staged-add',
+            onDetach: onUnstageAdd ? () => onUnstageAdd(item.id) : undefined,
+          },
+        });
+
+        edges.push({
+          id: `edge-core-${item.id}`,
+          source: 'vm-core',
+          target: item.id,
+          type: 'diffEdge',
+          data: {
+            status: 'staged-add',
+            label: '+ Staged',
+          },
+        });
+
+        netY += 170;
+      });
+
     // PCI Passthrough Nodes (stacked on bottom right)
     let pciY = Math.max(netY, 340);
+
+    // 1. Existing PCI devices
     domain.pciDevices.forEach((pci, idx) => {
       const pciId = pci.id || `hostdev-${pci.domain}_${pci.bus}_${pci.slot}_${pci.function || idx}`;
+      const isDeleted = stagedDeletions.has(pciId);
+
       nodes.push({
         id: pciId,
         type: 'capability',
@@ -160,6 +273,8 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
           type: 'pci',
           pci,
           positionSide: 'right',
+          status: isDeleted ? 'staged-delete' : 'normal',
+          onDetach: onToggleDelete ? () => onToggleDelete(pciId) : undefined,
         },
       });
 
@@ -168,19 +283,62 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
         source: 'vm-core',
         target: pciId,
         type: 'diffEdge',
-        data: { status: 'normal' },
+        data: {
+          status: isDeleted ? 'staged-delete' : 'normal',
+          label: isDeleted ? '- Detach' : undefined,
+        },
       });
 
       pciY += 170;
     });
 
+    // 2. Staged addition PCI devices
+    stagedAdditions
+      .filter((a) => a.type === 'pci')
+      .forEach((item) => {
+        nodes.push({
+          id: item.id,
+          type: 'capability',
+          position: { x: 920, y: pciY },
+          data: {
+            type: 'pci',
+            pci: item.pci,
+            positionSide: 'right',
+            status: 'staged-add',
+            onDetach: onUnstageAdd ? () => onUnstageAdd(item.id) : undefined,
+          },
+        });
+
+        edges.push({
+          id: `edge-core-${item.id}`,
+          source: 'vm-core',
+          target: item.id,
+          type: 'diffEdge',
+          data: {
+            status: 'staged-add',
+            label: '+ Staged',
+          },
+        });
+
+        pciY += 170;
+      });
+
     return { initialNodes: nodes, initialEdges: edges };
-  }, [domain, onStartDomain, onStopDomain, onRestartDomain]);
+  }, [
+    domain,
+    onStartDomain,
+    onStopDomain,
+    onRestartDomain,
+    stagedAdditions,
+    stagedDeletions,
+    onUnstageAdd,
+    onToggleDelete,
+  ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Sync node changes when domain changes, preserving position if already positioned
+  // Sync node changes when domain or draft changes, preserving user node coordinates if already positioned
   useEffect(() => {
     setNodes((currentNodes) => {
       const posMap = new Map(currentNodes.map((n) => [n.id, n.position]));
@@ -223,8 +381,11 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
       )
     );
 
+  const hasDraftChanges = stagedAdditions.length > 0 || stagedDeletions.size > 0;
+
   return (
     <div className="relative w-full h-full bg-[#0c0d12]">
+      {/* Top action toolbar */}
       <CanvasToolbar
         onAddHardware={onAddHardware}
         onToggleXml={onToggleXml}
@@ -232,6 +393,7 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
         isStreaming={!!telemetry}
       />
 
+      {/* React Flow Blueprint Canvas */}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -252,6 +414,9 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
           nodeColor={(node) => {
             if (node.id === 'vm-core') return '#6366f1';
             const capType = (node.data as any)?.type;
+            const status = (node.data as any)?.status;
+            if (status === 'staged-add') return '#10b981';
+            if (status === 'staged-delete') return '#f43f5e';
             if (capType === 'storage') return '#10b981';
             if (capType === 'network') return '#0ea5e9';
             if (capType === 'compute') return '#a855f7';
@@ -262,6 +427,19 @@ const VmCanvasInner: React.FC<VmCanvasProps> = ({
           className="!bottom-4 !left-4 !rounded-xl !border !border-white/10 !bg-neutral-900/80 !backdrop-blur-md overflow-hidden shadow-2xl"
         />
       </ReactFlow>
+
+      {/* Floating Draft & Commit Dock */}
+      {hasDraftChanges && onDiscardDraft && onApplyDraft && (
+        <DraftCommitBar
+          hasChanges={hasDraftChanges}
+          stagedAdditions={stagedAdditions}
+          stagedDeletions={stagedDeletions}
+          requiresReboot={requiresReboot}
+          isApplying={isApplyingDraft}
+          onDiscard={onDiscardDraft}
+          onApply={onApplyDraft}
+        />
+      )}
     </div>
   );
 };

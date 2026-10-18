@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -415,24 +417,60 @@ func (c *MockClient) DeleteDomain(_ context.Context, id string, _ bool) error {
 	return fmt.Errorf("domain %q not found", id)
 }
 
-func (c *MockClient) AttachDevice(_ context.Context, id string, _ string, _, _ bool) error {
+func (c *MockClient) AttachDevice(_ context.Context, id string, deviceXML string, _, _ bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.findRecord(id)
+	rec, ok := c.findRecord(id)
 	if !ok {
 		return fmt.Errorf("domain %q not found", id)
+	}
+
+	trimmed := strings.TrimSpace(deviceXML)
+	if idx := strings.Index(rec.XML, "</devices>"); idx != -1 {
+		rec.XML = rec.XML[:idx] + "    " + trimmed + "\n  " + rec.XML[idx:]
 	}
 	return nil
 }
 
-func (c *MockClient) DetachDevice(_ context.Context, id string, _ string, _, _ bool) error {
+func (c *MockClient) DetachDevice(_ context.Context, id string, deviceXML string, _, _ bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.findRecord(id)
+	rec, ok := c.findRecord(id)
 	if !ok {
 		return fmt.Errorf("domain %q not found", id)
+	}
+
+	if strings.Contains(deviceXML, "dev='") || strings.Contains(deviceXML, `dev="`) {
+		reTarget := regexp.MustCompile(`target\s+dev=['"]([^'"]+)['"]`)
+		if matches := reTarget.FindStringSubmatch(deviceXML); len(matches) > 1 {
+			targetDev := matches[1]
+			reDisk := regexp.MustCompile(`(?s)\s*<disk[^>]*>.*?<target[^>]*dev=['"]` + regexp.QuoteMeta(targetDev) + `['"].*?</disk>`)
+			rec.XML = reDisk.ReplaceAllString(rec.XML, "")
+		}
+	} else if strings.Contains(deviceXML, "address='") || strings.Contains(deviceXML, `address="`) {
+		reMac := regexp.MustCompile(`mac\s+address=['"]([^'"]+)['"]`)
+		if matches := reMac.FindStringSubmatch(deviceXML); len(matches) > 1 {
+			mac := matches[1]
+			reIface := regexp.MustCompile(`(?s)\s*<interface[^>]*>.*?<mac[^>]*address=['"]` + regexp.QuoteMeta(mac) + `['"].*?</interface>`)
+			rec.XML = reIface.ReplaceAllString(rec.XML, "")
+		}
+	} else if strings.Contains(deviceXML, "<hostdev") {
+		reSlot := regexp.MustCompile(`slot=['"]([^'"]+)['"]`)
+		if matches := reSlot.FindStringSubmatch(deviceXML); len(matches) > 1 {
+			slot := matches[1]
+			reHostdev := regexp.MustCompile(`(?s)\s*<hostdev[^>]*>.*?slot=['"]` + regexp.QuoteMeta(slot) + `['"].*?</hostdev>`)
+			if reHostdev.MatchString(rec.XML) {
+				rec.XML = reHostdev.ReplaceAllString(rec.XML, "")
+			} else {
+				reFirstHostdev := regexp.MustCompile(`(?s)\s*<hostdev[^>]*>.*?</hostdev>`)
+				rec.XML = reFirstHostdev.ReplaceAllString(rec.XML, "")
+			}
+		} else {
+			reFirstHostdev := regexp.MustCompile(`(?s)\s*<hostdev[^>]*>.*?</hostdev>`)
+			rec.XML = reFirstHostdev.ReplaceAllString(rec.XML, "")
+		}
 	}
 	return nil
 }
