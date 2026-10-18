@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, RotateCcw, AlertTriangle, Loader2, Sparkles, Layers } from 'lucide-react';
+import { Check, RotateCcw, AlertTriangle, Loader2, Layers } from 'lucide-react';
 import type { StagedAddition } from '@/hooks/useDraftChanges';
 
 interface DraftCommitBarProps {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { hardwareClient } from '@/lib/connect';
 import type { DiskDevice, NetworkInterfaceDevice, PCIDevice, ComputeConfig } from '@/gen/rhino/v1/hardware_pb';
 import type { DomainDetail } from '@/gen/rhino/v1/vm_pb';
@@ -23,6 +23,10 @@ export function useDraftChanges(domain: DomainDetail | null) {
 
   // Clear draft changes when domain ID changes
   const currentDomainId = domain?.summary?.uuid || domain?.summary?.name;
+  useEffect(() => {
+    setStagedAdditions([]);
+    setStagedDeletions(new Set());
+  }, [currentDomainId]);
 
   const stageAdd = useCallback((item: StagedAddition) => {
     setStagedAdditions((prev) => [...prev.filter((i) => i.id !== item.id), item]);
@@ -64,7 +68,7 @@ export function useDraftChanges(domain: DomainDetail | null) {
   const hasChanges = stagedAdditions.length > 0 || stagedDeletions.size > 0;
   const changeCount = stagedAdditions.length + stagedDeletions.size;
 
-  const isRunning = domain?.summary?.state === DomainState.DOMAIN_STATE_RUNNING;
+  const isRunning = domain?.summary?.state === DomainState.RUNNING;
 
   // Evaluate if any change requires reboot
   const requiresReboot = useMemo(() => {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { X, Zap, AlertTriangle, Check, ShieldAlert } from 'lucide-react';
+import { X, Zap, Check, ShieldAlert } from 'lucide-react';
 import { PCIDeviceSchema, type PCIDevice } from '@/gen/rhino/v1/hardware_pb';
 import type { HostNodeDevice } from '@/gen/rhino/v1/host_pb';
 import type { DomainDetail } from '@/gen/rhino/v1/vm_pb';

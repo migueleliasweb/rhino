@@ -112,12 +112,12 @@ Build a standalone, robust Go backend using Connect RPC, `digitalocean/go-libvir
 
 ## Phase 3: Search-to-Capability & Mutation Engine
 
-- [ ] Implement `Cmd+K` command palette.
-- [ ] Connect palette to `HostService` endpoints to show discovered storage pools, bridges, and host PCI devices.
-- [ ] Implement modal flow: selecting device -> configuring parameters -> spawning auto-wired node in staged state.
-- [ ] Implement visual diff edge rendering (green dashed animated for staged additions, red dashed for staged deletions).
-- [ ] Implement "Draft & Commit" toolbar with "Apply Changes" button calling `AttachDevice`/`DetachDevice`.
-- [ ] Show "Reboot Required" notification for non-hotpluggable staged changes.
+- [x] Implement `Cmd+K` command palette.
+- [x] Connect palette to `HostService` endpoints to show discovered storage pools, bridges, and host PCI devices.
+- [x] Implement modal flow: selecting device -> configuring parameters -> spawning auto-wired node in staged state.
+- [x] Implement visual diff edge rendering (green dashed animated for staged additions, red dashed for staged deletions).
+- [x] Implement "Draft & Commit" toolbar with "Apply Changes" button calling `AttachDevice`/`DetachDevice`.
+- [x] Show "Reboot Required" notification for non-hotpluggable staged changes.
 
 ---
 

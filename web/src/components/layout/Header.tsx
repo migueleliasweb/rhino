@@ -13,6 +13,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   hostInfo,
   onNewVm,
+  onOpenPalette,
   activeDomainName,
 }) => {
   return (
