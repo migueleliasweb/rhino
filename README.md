@@ -9,6 +9,8 @@
 
 Rhino reimagines virtual machine management by replacing traditional nested configuration tabs with an **Interactive Node-Based Visual Canvas** (inspired by Blender nodes and Unreal Engine Blueprints), backed by a single-binary Go backend serving Connect RPC to a React Flow frontend.
 
+![Rhino screenshot](./screenshot.png)
+
 ---
 
 ## 📚 Documentation
